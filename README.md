@@ -31,4 +31,15 @@ Halconfig deploymentEnvironment:
       - name: token-refresh
         dockerImage: armory/gcloud-auth-helper:stable
         mountPath: /tmp/gcloud
+
+    initContainers:
+      clouddriver:
+        - name: token-refresh
+          image: busybox
+          volumeMounts:
+            - name: token-refresh
+              mountPath: /tmp/gcloud
+          command:
+            - mkfifo 
+            - /tmp/gcloud/auth_token
 ```
