@@ -1,14 +1,21 @@
 #!/bin/sh
-while :; do
 
-  echo "$(date): Generating token"
-  /app/gcp-exec-creds > /tmp/gcloud/auth_token.tmp
+set -uo pipefail
 
-  # Should be atomic (no broken file handlers):
-  (
-    flock -x 200
-    mv /tmp/gcloud/auth_token.tmp /tmp/gcloud/auth_token
-  ) 200>/tmp/gcloud/auth_token.lock
+: EXEC_CREDENTIAL_PATH ${EXEC_CREDENTIAL_PATH:=/tmp/gcloud/auth_token};
 
-  sleep 600
-done
+_cleanup() { exec 3>&- ; exit 0 ; };
+for i in TERM QUIT INT HUP EXIT; do trap '_cleanup' $i; done;
+
+if ! test -e "$EXEC_CREDENTIAL_PATH"; then
+  mkfifo "$EXEC_CREDENTIAL_PATH";
+fi;
+while test -p "$EXEC_CREDENTIAL_PATH"; do
+  exec 3>"$EXEC_CREDENTIAL_PATH";
+  rm -rf "$EXEC_CREDENTIAL_PATH" > /dev/null;
+  mkfifo "$EXEC_CREDENTIAL_PATH" > /dev/null;
+  echo "$(date): Generating token" >&2;
+  /app/gcp-exec-creds >&3;
+  exec 3>&- ;
+done;
+
